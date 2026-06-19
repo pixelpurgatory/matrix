@@ -724,8 +724,230 @@
     ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h);
   }
 
+  /* ============================================================
+   *  LOGIN HERO — full-body operator on a neon podium (daily screen)
+   *  Original procedural figure: trench coat, magenta shades, code aura.
+   * ============================================================ */
+  function loginHero(ctx, w, h, def, t) {
+    ctx.clearRect(0, 0, w, h);
+    const accent = def.accent || "#00ff66";
+    const neon = "#ff3df0"; // magenta key light to echo the brief
+    // backdrop
+    const bg = ctx.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0, "#03110a"); bg.addColorStop(0.6, "#04140c"); bg.addColorStop(1, "#01060a");
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+    // code rain
+    ctx.font = `${Math.round(w * 0.03)}px monospace`; ctx.textBaseline = "top";
+    for (let i = 0; i < 22; i++) {
+      const cx = (i / 22) * w;
+      const off = ((t * (26 + (i % 5) * 16) + i * 57) % (h + 100)) - 50;
+      for (let j = 0; j < 7; j++) {
+        ctx.fillStyle = hexa("#00ff66", j === 0 ? 0.4 : Math.max(0, 0.16 - j * 0.022));
+        ctx.fillText("01ｱｹﾐ"[(i + j) % 4], cx, off - j * w * 0.03);
+      }
+    }
+    // big key glow behind hero
+    const cx = w * 0.5, cy = h * 0.56;
+    glow(ctx, cx, cy - h * 0.05, w * 0.5, neon, 0.22);
+    glow(ctx, cx, cy, w * 0.42, accent, 0.16);
+
+    // podium rings
+    ctx.save();
+    ctx.translate(cx, h * 0.84);
+    for (let k = 0; k < 3; k++) {
+      const rr = w * (0.16 + k * 0.08);
+      const pulse = 0.5 + 0.5 * Math.sin(t * 2 - k);
+      ctx.strokeStyle = hexa(accent, (0.5 - k * 0.13) * (0.6 + 0.4 * pulse));
+      ctx.lineWidth = 2 - k * 0.4;
+      ctx.beginPath(); ctx.ellipse(0, 0, rr, rr * 0.3, 0, 0, TAU); ctx.stroke();
+    }
+    glow(ctx, 0, 0, w * 0.22, accent, 0.18);
+    ctx.restore();
+
+    // ---- the figure (large, fills the frame) ----
+    const s = h / 430; // bigger => more presence
+    const sway = Math.sin(t * 1.4) * 2.5 * s;
+    ctx.save();
+    ctx.translate(cx + sway, h * 0.5);
+    drawHeroFigure(ctx, s, t, def, neon, accent);
+    ctx.restore();
+
+    // foreground floor light bloom
+    const fl = ctx.createRadialGradient(cx, h * 0.84, 4, cx, h * 0.84, w * 0.4);
+    fl.addColorStop(0, hexa(accent, 0.12)); fl.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = fl; ctx.fillRect(0, h * 0.66, w, h * 0.34);
+  }
+  // filled tapered segment along A -> control M -> B, width wa..wb
+  function segFill(ctx, ax, ay, mx, my, bx, by, wa, wb) {
+    const ang = Math.atan2(by - ay, bx - ax);
+    const nx = Math.sin(ang), ny = -Math.cos(ang);
+    const wm = (wa + wb) / 2;
+    ctx.beginPath();
+    ctx.moveTo(ax + nx * wa, ay + ny * wa);
+    ctx.quadraticCurveTo(mx + nx * wm, my + ny * wm, bx + nx * wb, by + ny * wb);
+    ctx.arc(bx, by, wb, ang - Math.PI / 2, ang + Math.PI / 2);
+    ctx.quadraticCurveTo(mx - nx * wm, my - ny * wm, ax - nx * wa, ay - ny * wa);
+    ctx.closePath();
+  }
+
+  function drawHeroFigure(ctx, s, t, def, neon, accent) {
+    const u = 30 * s;
+    const skin = def.skin || "#e6c6a6";
+    const COAT0 = "#0a0e14", COAT1 = "#161b25";
+    ctx.lineJoin = "round"; ctx.lineCap = "round";
+    glow(ctx, 0, -1.0 * u, 4.4 * u, neon, 0.16);
+
+    // ===== BACK: billowing trench cape =====
+    const bil = Math.sin(t * 1.5) * 0.3 * u;
+    ctx.fillStyle = lin(ctx, -2.6 * u, 0, 2.6 * u, 0, [[0, "#05070b"], [0.5, "#0c0f16"], [1, "#05070b"]]);
+    ctx.beginPath();
+    ctx.moveTo(-1.25 * u, -1.95 * u);
+    ctx.quadraticCurveTo(-2.9 * u - bil, 0.8 * u, -2.2 * u - bil, 3.7 * u);
+    ctx.quadraticCurveTo(-1.0 * u, 3.0 * u, -0.5 * u, 1.4 * u);
+    ctx.lineTo(0.5 * u, 1.4 * u);
+    ctx.quadraticCurveTo(1.0 * u, 3.0 * u, 2.2 * u + bil, 3.7 * u);
+    ctx.quadraticCurveTo(2.9 * u + bil, 0.8 * u, 1.25 * u, -1.95 * u);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = hexa(accent, 0.28); ctx.lineWidth = 1.4 * s; ctx.stroke();
+
+    // ===== LEGS: contrapposto stance, thigh-high boots =====
+    const stance = [[-1, 0.32, 1.0], [1, 0.62, 1.0]]; // [side, kneeOut, len]
+    for (const [side, kx] of stance) {
+      // thigh (skin) then boot (dark) over lower leg
+      ctx.fillStyle = skin;
+      segFill(ctx, side * 0.42 * u, 0.35 * u, side * (0.4 + kx) * u, 1.5 * u, side * (0.3 + kx) * u, 2.0 * u, 0.34 * u, 0.28 * u); ctx.fill();
+      // boot
+      ctx.fillStyle = lin(ctx, side * 0.4 * u, 1.6 * u, side * 0.9 * u, 3.7 * u, [[0, "#1b1f27"], [1, "#05070b"]]);
+      segFill(ctx, side * (0.42 + kx * 0.6) * u, 1.55 * u, side * (0.45 + kx) * u, 2.7 * u, side * (0.42 + kx) * u, 3.7 * u, 0.34 * u, 0.26 * u); ctx.fill();
+      // boot sheen + neon top band
+      ctx.strokeStyle = "rgba(120,140,160,.4)"; ctx.lineWidth = 0.06 * u;
+      ctx.beginPath(); ctx.moveTo(side * (0.3 + kx * 0.6) * u, 1.9 * u); ctx.quadraticCurveTo(side * (0.34 + kx) * u, 2.7 * u, side * (0.32 + kx) * u, 3.5 * u); ctx.stroke();
+      ctx.strokeStyle = neon; ctx.lineWidth = 0.12 * u; ctx.shadowColor = neon; ctx.shadowBlur = 9 * s;
+      ctx.beginPath(); ctx.moveTo(side * (0.18 + kx * 0.6) * u, 1.62 * u); ctx.lineTo(side * (0.66 + kx * 0.6) * u, 1.62 * u); ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    // ===== HIPS / bodysuit lower =====
+    ctx.fillStyle = lin(ctx, 0, 0, 0, 1 * u, [[0, "#10131a"], [1, "#06080d"]]);
+    ctx.beginPath();
+    ctx.moveTo(-0.7 * u, -0.1 * u);
+    ctx.quadraticCurveTo(-0.85 * u, 0.5 * u, -0.45 * u, 0.7 * u);
+    ctx.quadraticCurveTo(0, 0.85 * u, 0.45 * u, 0.7 * u);
+    ctx.quadraticCurveTo(0.85 * u, 0.5 * u, 0.7 * u, -0.1 * u);
+    ctx.closePath(); ctx.fill();
+
+    // ===== TORSO: hourglass bodysuit =====
+    const torso = lin(ctx, 0, -1.95 * u, 0, 0.6 * u, [[0, "#141925"], [1, "#080b12"]]);
+    ctx.fillStyle = torso;
+    ctx.beginPath();
+    ctx.moveTo(-1.02 * u, -1.85 * u);                 // L shoulder
+    ctx.quadraticCurveTo(-0.95 * u, -1.0 * u, -0.5 * u, -0.55 * u); // waist in
+    ctx.quadraticCurveTo(-0.7 * u, 0.0 * u, -0.7 * u, 0.1 * u);    // to hip
+    ctx.lineTo(0.7 * u, 0.1 * u);
+    ctx.quadraticCurveTo(0.7 * u, 0.0 * u, 0.5 * u, -0.55 * u);
+    ctx.quadraticCurveTo(0.95 * u, -1.0 * u, 1.02 * u, -1.85 * u); // R shoulder
+    ctx.closePath(); ctx.fill();
+    // soft form shading (tasteful) + neon seams
+    ctx.fillStyle = hexa("#000", 0.22);
+    ctx.beginPath(); ctx.ellipse(-0.35 * u, -1.05 * u, 0.34 * u, 0.42 * u, -0.2, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0.35 * u, -1.05 * u, 0.34 * u, 0.42 * u, 0.2, 0, TAU); ctx.fill();
+    ctx.strokeStyle = hexa(neon, 0.85); ctx.lineWidth = 0.09 * u; ctx.shadowColor = neon; ctx.shadowBlur = 8 * s;
+    ctx.beginPath();
+    ctx.moveTo(0, -1.55 * u); ctx.lineTo(0, 0.05 * u);                       // centre seam
+    ctx.moveTo(-0.62 * u, -1.75 * u); ctx.quadraticCurveTo(0, -1.15 * u, 0.62 * u, -1.75 * u); // collarbone V
+    ctx.stroke(); ctx.shadowBlur = 0;
+
+    // ===== OPEN COAT FRONT PANELS (frame the torso) =====
+    for (const side of [-1, 1]) {
+      ctx.fillStyle = lin(ctx, side * 0.7 * u, -1.9 * u, side * 1.5 * u, 2 * u, [[0, COAT1], [1, COAT0]]);
+      ctx.beginPath();
+      ctx.moveTo(side * 0.95 * u, -1.9 * u);
+      ctx.quadraticCurveTo(side * 1.5 * u, -0.3 * u, side * 1.25 * u, 2.6 * u);
+      ctx.quadraticCurveTo(side * 0.95 * u, 2.4 * u, side * 0.82 * u, 1.0 * u);
+      ctx.quadraticCurveTo(side * 0.78 * u, -0.6 * u, side * 0.7 * u, -1.7 * u);
+      ctx.closePath(); ctx.fill();
+      // lapel neon inner edge
+      ctx.strokeStyle = hexa(accent, 0.55); ctx.lineWidth = 0.06 * u; ctx.shadowColor = accent; ctx.shadowBlur = 6 * s;
+      ctx.beginPath(); ctx.moveTo(side * 0.72 * u, -1.7 * u); ctx.quadraticCurveTo(side * 0.8 * u, 0.4 * u, side * 0.86 * u, 1.6 * u); ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    // ===== ARMS (filled): left hand on hip, right arm out =====
+    // left upper + forearm to hip
+    ctx.fillStyle = COAT0;
+    segFill(ctx, -0.98 * u, -1.78 * u, -1.65 * u, -0.95 * u, -1.5 * u, -0.15 * u, 0.32 * u, 0.24 * u); ctx.fill(); // upper arm out
+    segFill(ctx, -1.5 * u, -0.15 * u, -1.2 * u, 0.3 * u, -0.62 * u, 0.45 * u, 0.24 * u, 0.18 * u); ctx.fill();    // forearm to hip
+    // right arm out & slightly down
+    segFill(ctx, 0.98 * u, -1.78 * u, 1.7 * u, -1.2 * u, 2.05 * u, -0.45 * u, 0.32 * u, 0.22 * u); ctx.fill();
+    segFill(ctx, 2.05 * u, -0.45 * u, 2.2 * u, 0.1 * u, 2.25 * u, 0.7 * u, 0.22 * u, 0.16 * u); ctx.fill();
+    // hands (skin) + neon cuffs
+    ctx.fillStyle = skin;
+    ctx.beginPath(); ctx.arc(-0.6 * u, 0.5 * u, 0.2 * u, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(2.27 * u, 0.78 * u, 0.19 * u, 0, TAU); ctx.fill();
+    ctx.strokeStyle = neon; ctx.lineWidth = 0.09 * u; ctx.shadowColor = neon; ctx.shadowBlur = 8 * s;
+    ctx.beginPath(); ctx.moveTo(-0.78 * u, 0.34 * u); ctx.lineTo(-0.5 * u, 0.5 * u); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(2.12 * u, 0.55 * u); ctx.lineTo(2.32 * u, 0.62 * u); ctx.stroke();
+    ctx.shadowBlur = 0;
+    // raised trench collar
+    ctx.fillStyle = COAT1;
+    ctx.beginPath();
+    ctx.moveTo(-0.55 * u, -1.9 * u); ctx.lineTo(-0.95 * u, -2.45 * u); ctx.lineTo(-0.3 * u, -2.0 * u); ctx.closePath();
+    ctx.moveTo(0.55 * u, -1.9 * u); ctx.lineTo(0.95 * u, -2.45 * u); ctx.lineTo(0.3 * u, -2.0 * u); ctx.closePath();
+    ctx.fill();
+
+    // ===== NECK + HEAD =====
+    ctx.fillStyle = skin; ctx.fillRect(-0.2 * u, -2.45 * u, 0.4 * u, 0.65 * u);
+    ctx.fillStyle = hexa("#000", 0.2); ctx.fillRect(-0.2 * u, -2.0 * u, 0.4 * u, 0.18 * u);
+    // choker
+    ctx.strokeStyle = neon; ctx.lineWidth = 0.08 * u; ctx.shadowColor = neon; ctx.shadowBlur = 6 * s;
+    ctx.beginPath(); ctx.moveTo(-0.22 * u, -1.92 * u); ctx.lineTo(0.22 * u, -1.92 * u); ctx.stroke(); ctx.shadowBlur = 0;
+    const hy = -2.85 * u;
+    // hair back
+    ctx.fillStyle = def.hair || "#15110f";
+    ctx.beginPath(); ctx.ellipse(0, hy + 0.05 * u, 0.6 * u, 0.7 * u, 0, 0, TAU); ctx.fill();
+    // face
+    ctx.fillStyle = skin;
+    ctx.beginPath();
+    ctx.moveTo(-0.42 * u, hy - 0.05 * u);
+    ctx.quadraticCurveTo(-0.46 * u, hy + 0.42 * u, 0, hy + 0.6 * u);
+    ctx.quadraticCurveTo(0.46 * u, hy + 0.42 * u, 0.42 * u, hy - 0.05 * u);
+    ctx.quadraticCurveTo(0.4 * u, hy - 0.5 * u, 0, hy - 0.52 * u);
+    ctx.quadraticCurveTo(-0.4 * u, hy - 0.5 * u, -0.42 * u, hy - 0.05 * u);
+    ctx.fill();
+    // jaw shade + lips
+    ctx.fillStyle = hexa("#000", 0.12); ctx.beginPath(); ctx.ellipse(0.16 * u, hy + 0.2 * u, 0.4 * u, 0.4 * u, 0, 0, Math.PI); ctx.fill();
+    ctx.strokeStyle = def.lips || "#9a3450"; ctx.lineWidth = 0.07 * u; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(-0.12 * u, hy + 0.34 * u); ctx.quadraticCurveTo(0, hy + 0.4 * u, 0.12 * u, hy + 0.34 * u); ctx.stroke();
+    // bob fringe over forehead
+    ctx.fillStyle = def.hair || "#15110f";
+    ctx.beginPath();
+    ctx.moveTo(-0.5 * u, hy + 0.15 * u);
+    ctx.quadraticCurveTo(-0.66 * u, hy - 0.55 * u, 0, hy - 0.62 * u);
+    ctx.quadraticCurveTo(0.66 * u, hy - 0.55 * u, 0.5 * u, hy + 0.15 * u);
+    ctx.lineTo(0.34 * u, hy + 0.02 * u);
+    ctx.quadraticCurveTo(0.28 * u, hy - 0.32 * u, 0, hy - 0.34 * u);
+    ctx.quadraticCurveTo(-0.28 * u, hy - 0.32 * u, -0.34 * u, hy + 0.02 * u);
+    ctx.closePath(); ctx.fill();
+    // magenta wrap shades
+    const sy = hy + 0.05 * u;
+    ctx.fillStyle = "#0a0309"; rrect(ctx, -0.46 * u, sy - 0.16 * u, 0.92 * u, 0.32 * u, 0.13 * u); ctx.fill();
+    const lg = lin(ctx, -0.42 * u, sy, 0.42 * u, sy, [[0, hexa(neon, 0.95)], [0.5, "#7a0f6e"], [1, hexa(neon, 0.95)]]);
+    ctx.fillStyle = lg; ctx.shadowColor = neon; ctx.shadowBlur = 10 * s;
+    rrect(ctx, -0.42 * u, sy - 0.1 * u, 0.84 * u, 0.22 * u, 0.09 * u); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.strokeStyle = "rgba(255,255,255,.8)"; ctx.lineWidth = 0.04 * u;
+    ctx.beginPath(); ctx.moveTo(-0.3 * u, sy + 0.02 * u); ctx.lineTo(-0.14 * u, sy + 0.1 * u); ctx.stroke();
+
+    // rim light: magenta on left edge, green on right
+    ctx.lineWidth = 0.05 * u; ctx.shadowBlur = 7 * s;
+    ctx.strokeStyle = hexa(neon, 0.5); ctx.shadowColor = neon;
+    ctx.beginPath(); ctx.moveTo(-1.0 * u, -1.85 * u); ctx.quadraticCurveTo(-0.95 * u, -0.9 * u, -0.55 * u, -0.5 * u); ctx.stroke();
+    ctx.strokeStyle = hexa(accent, 0.5); ctx.shadowColor = accent;
+    ctx.beginPath(); ctx.moveTo(1.0 * u, -1.85 * u); ctx.quadraticCurveTo(0.95 * u, -0.9 * u, 0.55 * u, -0.5 * u); ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
   M.sprites = {
     operator, agent, sentinel, wraith, boss, bossSentinel, bossTwin, gem, portrait,
-    tree, car, serverRack, building, lamp, trainCar, cityscape, glow, hexa, rrect,
+    tree, car, serverRack, building, lamp, trainCar, cityscape, loginHero, glow, hexa, rrect,
   };
 })();

@@ -179,31 +179,84 @@
     M.game.start(S.data.selected);
   }
 
-  /* ================= LOGIN ================= */
+  /* ================= LOGIN (7-day hero screen) ================= */
+  // node centre positions (% of screen), matching the reference composition
+  const LOGIN_POS = [
+    { l: 17, t: 41 }, { l: 10, t: 57 }, { l: 18, t: 72 }, { l: 42, t: 84 },
+    { l: 70, t: 79 }, { l: 82, t: 62 }, { l: 80, t: 45 },
+  ];
+  function loginNode(r, i, d, todayIdx) {
+    const claimed = i < todayIdx || (i === todayIdx && d.loginClaimedToday);
+    const today = i === todayIdx && !d.loginClaimedToday;
+    const locked = i > todayIdx;
+    const isGrand = r.d === 7;
+    const p = LOGIN_POS[i];
+    const cls = `day-node${claimed ? " claimed" : ""}${today ? " today" : ""}${locked ? " locked" : ""}${isGrand ? " grand" : ""}`;
+    const ico = isGrand ? "?" : curIco(r.cur);
+    return `<div class="${cls}" data-day="${i}" style="left:${p.l}%;top:${p.t}%">
+      ${today ? '<div class="dn-badge">Claimable</div>' : ""}
+      <div class="dn-label">Day ${r.d}</div>
+      <div class="dn-frame"><div class="dn-ico">${ico}</div><div class="dn-check">✔</div></div>
+      <div class="dn-amt">${isGrand ? "★ ???" : "x" + U.fmtNum(r.amt)}</div>
+    </div>`;
+  }
   function showLogin() {
+    closeRains();
     const d = S.data; const todayIdx = d.loginDay % 7;
-    const cells = D.LOGIN.map((r, i) => {
-      const claimed = i < todayIdx || (i === todayIdx && d.loginClaimedToday);
-      const today = i === todayIdx && !d.loginClaimedToday;
-      return `<div class="login-day ${claimed ? "claimed" : ""} ${today ? "today" : ""} ${r.big ? "rar r-SSR" : ""}">
-        <div class="d">DAY ${r.d}</div>
-        <div class="ri" style="font-size:20px">${curIco(r.cur)}</div>
-        <div class="amt">${r.big ? "★" : ""}${U.fmtNum(r.amt)}</div>
+    const nodes = D.LOGIN.map((r, i) => loginNode(r, i, d, todayIdx)).join("");
+    const hero = D.CHARS[d.selected] || D.CHARS.neo_echo;
+    const scr = el("div", "screen"); scr.id = "login";
+    scr.innerHTML = `
+      <div class="login2">
+        <canvas id="loginHeroC"></canvas>
+        <button class="x-btn login2-x" data-close>✕</button>
+        <div class="login2-title">
+          <span class="big7">7</span>
+          <span class="title-stack"><span class="dayw">DAY</span><span class="lr">Login&nbsp;Rewards</span></span>
+        </div>
+        ${nodes}
+        <button class="btn primary claim-btn" id="claimLogin" ${d.loginClaimedToday ? "disabled" : ""}>${d.loginClaimedToday ? "CLAIMED" : "Claim"}</button>
       </div>`;
-    }).join("");
-    const scr = openScreen("login", "7-DAY UPLINK", `
-      <p class="muted center">Log in daily. Miss a day and the streak resets — your brain hates the loss more than it wanted the reward.</p>
-      <div class="login-grid">${cells}</div>
-      <div class="center" style="margin-top:20px">
-        <button class="btn primary big" id="claimLogin" ${d.loginClaimedToday ? "disabled" : ""}>${d.loginClaimedToday ? "CLAIMED TODAY" : "CLAIM DAY " + (todayIdx + 1)}</button>
-      </div>`);
-    const btn = $("#claimLogin", scr);
-    if (btn) btn.onclick = () => {
+    screens().appendChild(scr);
+    scr.querySelector("[data-close]").onclick = () => { M.audio.sfx.ui(); scr.remove(); };
+    animateHero($("#loginHeroC", scr), hero);
+
+    function doClaim() {
       const r = mon.claimLogin();
-      if (r) { M.audio.sfx.coin(); toast("+" + r.label); refreshCur(scr); btn.disabled = true; btn.textContent = "CLAIMED TODAY";
-        U.$$(".login-day", scr)[todayIdx].classList.add("claimed");
-        refreshHomeBadges(); }
-    };
+      if (!r) { toast("ALREADY CLAIMED TODAY"); return; }
+      M.audio.sfx.coin(); confettiFlash(r.big ? "#ffd24a" : "#00ff66");
+      toast("+ " + r.label);
+      refreshCur(scr); refreshHomeBadges();
+      const node = scr.querySelector(`.day-node[data-day="${todayIdx}"]`);
+      if (node) { node.classList.remove("today"); node.classList.add("claimed", "just"); const b = node.querySelector(".dn-badge"); if (b) b.remove(); }
+      const btn = $("#claimLogin", scr); btn.disabled = true; btn.textContent = "CLAIMED";
+    }
+    $("#claimLogin", scr).onclick = doClaim;
+    // tapping a node: claim today, or preview future/claimed
+    U.$$(".day-node", scr).forEach((n) => n.onclick = () => {
+      const i = +n.dataset.day; const r = D.LOGIN[i];
+      M.audio.sfx.ui();
+      if (i === todayIdx && !S.data.loginClaimedToday) return doClaim();
+      if (n.classList.contains("claimed")) return toast("Day " + r.d + " — already claimed ✔");
+      toast("Day " + r.d + ": " + r.label + " — locked");
+    });
+  }
+  function animateHero(canvas, def) {
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    function sizeIt() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = canvas.clientWidth || window.innerWidth, h = canvas.clientHeight || window.innerHeight;
+      canvas.width = w * dpr; canvas.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      canvas._w = w; canvas._h = h;
+    }
+    sizeIt(); const t0 = performance.now();
+    (function loop(t) {
+      if (!canvas.isConnected) return; // self-stops when screen closes
+      if (canvas.clientWidth * Math.min(window.devicePixelRatio || 1, 2) !== canvas.width) sizeIt();
+      M.sprites.loginHero(ctx, canvas._w, canvas._h, def, (t - t0) / 1000);
+      requestAnimationFrame(loop);
+    })(t0);
   }
 
   /* ================= OFFERS ================= */
