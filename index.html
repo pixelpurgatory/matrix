@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#000000" />
+<title>RESIDUAL // a survivor program</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23000'/%3E%3Ctext x='2' y='13' font-family='monospace' font-size='13' fill='%2300ff66'%3ER%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="game"></canvas>
+
+    <!-- ====================== HUD (in-run) ====================== -->
+    <div id="hud" class="hidden">
+      <div class="hud-top">
+        <div id="xpbar"><div id="xpfill"></div><span id="xptext">LV 1</span></div>
+        <div class="hud-row">
+          <div id="timer">00:00</div>
+          <div id="killcount">⛧ 0</div>
+        </div>
+      </div>
+      <div class="hud-bottom">
+        <div id="hpbar"><div id="hpfill"></div><span id="hptext"></span></div>
+      </div>
+      <button id="pauseBtn" class="ghost-btn">II</button>
+      <div id="joystick" class="hidden"><div id="stick"></div></div>
+    </div>
+
+    <!-- Screens get injected here -->
+    <div id="screens"></div>
+
+    <!-- Floating toast -->
+    <div id="toast"></div>
+  </div>
+
+  <!-- boot gate: requires a user gesture to start audio -->
+  <div id="boot">
+    <div class="boot-inner">
+      <div class="glitch" data-text="RESIDUAL">RESIDUAL</div>
+      <div class="boot-sub">// a survivor program</div>
+      <button id="bootBtn">JACK IN</button>
+      <div class="boot-note">tap to wake. headphones recommended.</div>
+    </div>
+  </div>
+
+  <script src="js/util.js"></script>
+  <script src="js/save.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/rain.js"></script>
+  <script src="js/sprites.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/monetization.js"></script>
+  <script src="js/entities.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
