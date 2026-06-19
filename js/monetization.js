@@ -206,20 +206,46 @@
     return out;
   }
 
-  /* ---------------- currency bundles (simulated buy) ---------------- */
+  /* ---------------- dollar credits ($, spendable, local) ---------------- */
+  function parsePrice(p) {
+    if (typeof p === "number") return p;
+    if (typeof p === "string" && p[0] === "$") return parseFloat(p.slice(1)) || 0;
+    return null; // "FREE" or non-dollar price
+  }
+  function addDollars(amt) {
+    const s = S();
+    s.dollars = +(((s.dollars || 0) + amt).toFixed(2));
+    s.dollarsEarned = +(((s.dollarsEarned || 0) + amt).toFixed(2));
+    M.save.save();
+    return s.dollars;
+  }
+
+  /* ---------------- currency bundles (spend $ credits) ---------------- */
   function buyBundle(type, id) {
     const b = data.BUNDLES[type].find((x) => x.id === id);
     if (!b) return { error: "no" };
-    if (b.cur) { // paid with another currency
-      if (!M.save.spend(b.cur, b.price)) return { error: "poor" };
-    }
-    let amt = b.amt;
-    // first-purchase doubling (foot-in-the-door)
     const s = S();
-    if (!b.cur && !s.firstTopup[id]) { amt *= 2; s.firstTopup[id] = true; }
-    M.save.add(type, amt);
+    let amt = b.amt, spent = 0;
+    if (b.cur) {
+      // paid with another in-game currency (e.g. Bytes bought with Redpills)
+      if (!M.save.spend(b.cur, b.price)) return { error: "poor" };
+    } else if (b.ad) {
+      // "watch ad" freebie — no cost
+    } else {
+      // dollar-priced pack: deduct the player's $ balance
+      const price = parsePrice(b.price);
+      if (price != null && price > 0) {
+        if ((s.dollars || 0) + 1e-9 < price)
+          return { error: "dollars", need: +(price - (s.dollars || 0)).toFixed(2), price };
+        s.dollars = +((s.dollars - price).toFixed(2));
+        spent = price;
+      }
+      // first-purchase doubling (foot-in-the-door)
+      if (!s.firstTopup[id]) { amt *= 2; s.firstTopup[id] = true; }
+    }
+    M.save.add(type, amt); // grants the goods + persists
     M.save.save();
-    return { ok: true, amt };
+    return { ok: true, amt, spent };
   }
 
   /* ---------------- end-of-run rewards ---------------- */
@@ -228,14 +254,17 @@
     const bonus = metaBonus();
     const bytes = Math.floor((40 + stats.kills * 1.4 + stats.time * 3 + stats.level * 25) * bonus.greed);
     const rp = Math.floor(stats.time / 60) * 5 + (stats.boss ? 30 : 0);
+    // $ credits for completing the run: base + time + boss bonus
+    const dollars = +((0.25 + Math.floor(stats.time / 60) * 0.15 + (stats.boss ? 0.75 : 0)).toFixed(2));
     M.save.add("bytes", bytes);
     if (rp > 0) M.save.add("redpills", rp);
+    if (dollars > 0) addDollars(dollars);
     s.totalKills += stats.kills;
     s.runs += 1;
     if (stats.time > s.bestTime) s.bestTime = stats.time;
     addBpXp(Math.floor(stats.time / 6) + stats.level * 4 + (stats.boss ? 40 : 0));
     M.save.save();
-    return { bytes, rp };
+    return { bytes, rp, dollars };
   }
 
   function badgeCount() {
@@ -255,6 +284,6 @@
     offerState, buyOffer,
     bpTier, bpProgress, addBpXp, bpClaim, bpBuyPremium,
     metaLevel, metaBuy, metaBonus,
-    buyBundle, awardRun, grant, badgeCount,
+    buyBundle, parsePrice, addDollars, awardRun, grant, badgeCount,
   };
 })();

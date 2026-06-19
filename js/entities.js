@@ -239,6 +239,16 @@
         S.glow(ctx, this.x, this.y, 16, "#ffb300", 0.7);
         ctx.fillStyle = "#ffb300"; ctx.font = "18px monospace"; ctx.textAlign = "center";
         ctx.fillText("✸", this.x, this.y + 6); ctx.textAlign = "left";
+      } else if (this.kind === "cash") {
+        const p = 0.7 + 0.3 * Math.sin(t * 6 + this.x);
+        S.glow(ctx, this.x, this.y, 18, "#39ff9e", 0.7 * p);
+        ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(Math.sin(t * 2 + this.seed) * 0.25);
+        // little green bill
+        ctx.fillStyle = "#0c3a22"; S.rrect(ctx, -10, -6, 20, 12, 2); ctx.fill();
+        ctx.strokeStyle = "#39ff9e"; ctx.lineWidth = 1; ctx.stroke();
+        ctx.fillStyle = "#bfffd8"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText("$", 0, 1); ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+        ctx.restore();
       }
     }
   }

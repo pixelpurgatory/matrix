@@ -308,6 +308,9 @@
       if (U.chance(0.35)) this.pickups.push(this.pickupPool.get().spawn("byte", e.x, e.y, e.t.byte));
       if (U.chance(e.t.boss ? 1 : 0.012)) this.pickups.push(this.pickupPool.get().spawn("heart", e.x, e.y, 20));
       if (U.chance(0.01)) this.pickups.push(this.pickupPool.get().spawn("magnet", e.x, e.y, 0));
+      // rare $ drop during fights (bosses always drop one)
+      if (U.chance(e.t.boss ? 1 : 0.004))
+        this.pickups.push(this.pickupPool.get().spawn("cash", e.x, e.y, e.t.boss ? 1.0 : +(0.1 + Math.random() * 0.4).toFixed(2)));
       if (e.t.boss) { this.pickups.push(this.pickupPool.get().spawn("bomb", e.x, e.y, 0)); this.bossKilled = true; }
       this.enemyPool.put(e);
     }
@@ -317,6 +320,7 @@
       else if (p.kind === "heart") { this.player.hp = Math.min(this.player.maxhp, this.player.hp + p.val); this.toast("+" + p.val + " HP"); }
       else if (p.kind === "magnet") { this.magnetAll(); }
       else if (p.kind === "bomb") { this.bigBomb(); }
+      else if (p.kind === "cash") { const amt = +(p.val || 0.1).toFixed(2); M.mon.addDollars(amt); this.runDollars = +(((this.runDollars || 0) + amt).toFixed(2)); M.audio.sfx.coin(); this.toast("+ $" + amt.toFixed(2)); }
       this.pickupPool.put(p);
     }
     magnetAll() { for (const p of this.pickups) p.pull = true; this.toast("◈ DATA SWEEP"); }

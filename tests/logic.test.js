@@ -144,12 +144,41 @@ ok("run awards bytes", rw.bytes > 0);
 ok("boss run awards redpills", rw.rp > 0);
 ok("stats recorded", M.save.data.runs === 1 && M.save.data.bestTime === 600);
 
-console.log("\n== BUNDLES (first-buy 2x) ==");
+console.log("\n== DOLLARS + SHOP ==");
 M.save.reset();
-const b1 = M.mon.buyBundle("redpills", "rp1");
+ok("user starts with $2", M.save.data.dollars === 2);
+const rpBefore = M.save.data.redpills;
+const b1 = M.mon.buyBundle("redpills", "rp1"); // $0.99 -> 80 (x2 first)
+ok("buy deducts $ + delivers goods", b1.ok && M.save.data.dollars === +(2 - 0.99).toFixed(2) && M.save.data.redpills === rpBefore + D.BUNDLES.redpills[0].amt * 2, JSON.stringify(b1) + " $" + M.save.data.dollars);
 ok("first buy doubled", b1.amt === D.BUNDLES.redpills[0].amt * 2);
 const b2 = M.mon.buyBundle("redpills", "rp1");
 ok("second buy not doubled", b2.amt === D.BUNDLES.redpills[0].amt);
+const b3 = M.mon.buyBundle("redpills", "rp1");
+ok("blocked when $ insufficient", b3.error === "dollars", JSON.stringify(b3));
+M.save.reset();
+const adb = M.mon.buyBundle("bytes", "by0"); // FREE ad pack
+ok("ad pack free, grants bytes, no $ spent", adb.ok && M.save.data.dollars === 2);
+M.save.reset(); M.save.add("redpills", 1000);
+const byb = M.mon.buyBundle("bytes", "by1"); // costs redpills
+ok("bytes pack spends redpills", byb.ok && M.save.data.redpills === 80 + 1000 - 100);
+
+console.log("\n== EARNING $ ==");
+M.save.reset();
+const d0 = M.save.data.dollars;
+const drw = M.mon.awardRun({ kills: 100, time: 180, level: 10, boss: true });
+ok("run completion awards $", drw.dollars > 0 && M.save.data.dollars > d0, "rw=" + JSON.stringify(drw));
+M.save.reset();
+M.mon.addDollars(0.5);
+ok("combat $ drop adds + tracks lifetime", M.save.data.dollars === 2.5 && M.save.data.dollarsEarned === 0.5);
+
+console.log("\n== OFFLINE PERSISTENCE ==");
+M.save.reset();
+M.mon.addDollars(3.25);
+M.save.data.bytes = 12345; M.mon.unlockChar("trace_ivory"); M.save.save();
+M.save.load(); // simulate closing & reopening the browser
+ok("$ persisted across reload", M.save.data.dollars === 5.25, "$" + M.save.data.dollars);
+ok("bytes persisted across reload", M.save.data.bytes === 12345);
+ok("roster persisted across reload", M.save.data.rosterOwned.trace_ivory === true);
 
 console.log(`\n========================================`);
 console.log(`  RESULT: ${pass} passed, ${fail} failed`);

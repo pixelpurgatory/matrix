@@ -20,9 +20,11 @@
   function curIco(kind) {
     return { bytes: "¤", redpills: "◆", keys: "⚿" }[kind] || "•";
   }
+  function fmtUsd(n) { return "$" + (n || 0).toFixed(2); }
   function curBar() {
     const d = S.data;
     return `<div class="curbar">
+      <div class="cur cash"><span class="ico">$</span><b>${(d.dollars || 0).toFixed(2)}</b></div>
       <div class="cur gold"><span class="ico">¤</span><b>${U.fmtNum(d.bytes)}</b></div>
       <div class="cur red"><span class="ico">◆</span><b>${U.fmtNum(d.redpills)}</b></div>
       <div class="cur"><span class="ico">⚿</span><b>${d.keys}</b></div>
@@ -31,9 +33,13 @@
   function refreshCur(root) {
     const d = S.data;
     const c = (root || document).querySelectorAll(".curbar .cur b");
-    if (c[0]) c[0].textContent = U.fmtNum(d.bytes);
-    if (c[1]) c[1].textContent = U.fmtNum(d.redpills);
-    if (c[2]) c[2].textContent = d.keys;
+    if (c[0]) c[0].textContent = (d.dollars || 0).toFixed(2);
+    if (c[1]) c[1].textContent = U.fmtNum(d.bytes);
+    if (c[2]) c[2].textContent = U.fmtNum(d.redpills);
+    if (c[3]) c[3].textContent = d.keys;
+    // also refresh any open shop balance line
+    const bal = (root || document).querySelector("#dollarBal");
+    if (bal) bal.textContent = fmtUsd(d.dollars);
   }
 
   /* ---------------- screen scaffold ---------------- */
@@ -306,14 +312,22 @@
     const rp = D.BUNDLES.redpills.map((b) => bundleRow("redpills", b)).join("");
     const by = D.BUNDLES.bytes.map((b) => bundleRow("bytes", b)).join("");
     const scr = openScreen("shop", "SHOP // TOP-UP", `
-      <div class="section-h">◆ REDPILLS</div>${rp}
-      <div class="section-h">¤ BYTES</div>${by}
-      <p class="disclaimer">SIMULATED STORE — no real payment, no network. "Prices" are cosmetic labels; tapping grants in-game currency only. First top-up of each pack is doubled (a real conversion tactic, reproduced here for study).</p>`);
+      <div class="dollar-bal">$ BALANCE <b id="dollarBal">${fmtUsd(S.data.dollars)}</b>
+        <div class="muted" style="margin-top:3px">Earn $ by clearing runs &amp; rare combat drops. Spend it here.</div></div>
+      <div class="section-h">◆ REDPILLS <span class="muted" style="letter-spacing:0">— costs $</span></div>${rp}
+      <div class="section-h">¤ BYTES <span class="muted" style="letter-spacing:0">— costs ◆ / free</span></div>${by}
+      <p class="disclaimer">SIMULATED STORE — the "$" is an in-game balance stored only in your browser; there is no real payment or network. First top-up of each pack is doubled (a real conversion tactic, reproduced here for study).</p>`);
     U.$$("[data-bundle]", scr).forEach((b) => b.onclick = () => {
       const [type, id] = b.dataset.bundle.split(":");
       const r = mon.buyBundle(type, id);
-      if (r.ok) { M.audio.sfx.coin(); confettiFlash(); toast("+" + U.fmtNum(r.amt) + " " + type); refreshCur(scr);
-        b.closest(".bundle").querySelector(".firstx") && (b.closest(".bundle").querySelector(".firstx").style.display = "none"); }
+      if (r.ok) {
+        M.audio.sfx.coin(); confettiFlash();
+        const spentTxt = r.spent ? "  (−" + fmtUsd(r.spent) + ")" : "";
+        toast("+ " + U.fmtNum(r.amt) + " " + (type === "redpills" ? "◆" : "¤") + spentTxt);
+        refreshCur(scr);
+        const row = b.closest(".bundle"); const fx = row && row.querySelector(".firstx"); if (fx) fx.style.display = "none";
+      }
+      else if (r.error === "dollars") { toast("NEED " + fmtUsd(r.need) + " MORE $"); shake(scr); }
       else if (r.error === "poor") toast("NOT ENOUGH ◆");
     });
   }
@@ -597,7 +611,7 @@
         <div class="go-stat"><b>${stats.kills}</b><span>PURGED</span></div>
         <div class="go-stat"><b>${stats.level}</b><span>LEVEL</span></div>
       </div>
-      <div class="go-reward">EXTRACTED &nbsp; ¤ ${U.fmtNum(reward.bytes)} ${reward.rp ? "· ◆ " + reward.rp : ""}</div>
+      <div class="go-reward">EXTRACTED &nbsp; ¤ ${U.fmtNum(reward.bytes)} ${reward.rp ? "· ◆ " + reward.rp : ""} ${reward.dollars ? '· <span style="color:#39ff9e">+ ' + fmtUsd(reward.dollars) + "</span>" : ""}</div>
       <div style="display:flex;gap:12px">
         <button class="btn" id="goHome">HUB</button>
         <button class="btn primary" id="goAgain">RE-ENTER</button>

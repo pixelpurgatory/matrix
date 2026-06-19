@@ -9,10 +9,12 @@
     lastSeen: 0,
     loginDay: 0, // how many daily rewards claimed (streak index)
     loginClaimedToday: false,
-    // currencies (all fake)
+    // currencies (all simulated / local — no real payment)
     bytes: 500, // soft currency (gold-equivalent)
     redpills: 80, // premium currency (diamond-equivalent)
     keys: 0, // gacha tokens
+    dollars: 2, // spendable $ credits — start the user with $2
+    dollarsEarned: 0, // lifetime $ earned (stats)
     // gacha
     pity: 0, // pulls since last SSR
     rosterOwned: { neo_echo: true }, // starter
