@@ -70,6 +70,9 @@ canvas#game{position:absolute;inset:0;width:100%;height:100%;display:block;backg
 
 /* ---------- HOME HUB ---------- */
 #home{justify-content:flex-end;}
+#cityBg{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;}
+#home > *:not(#cityBg){position:relative;z-index:1;}
+#home .side-rail,#home .curbar,#home .home-hero,#home .home-actions{z-index:2;}
 .home-hero{position:absolute;top:64px;left:0;right:0;bottom:150px;display:flex;align-items:center;justify-content:center;flex-direction:column;}
 .home-char{width:min(64vw,260px);aspect-ratio:3/4;}
 .home-charname{margin-top:8px;font-size:20px;letter-spacing:.2em;color:#eaffef;text-shadow:0 0 12px rgba(0,255,102,.6);}

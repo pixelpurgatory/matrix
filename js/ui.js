@@ -65,6 +65,7 @@
     const c = D.CHARS[d.selected];
     const home = el("div", "screen solid"); home.id = "home";
     home.innerHTML = `
+      <canvas id="cityBg"></canvas>
       ${curBar()}
       <div class="home-hero">
         <canvas class="home-char" id="homePortrait"></canvas>
@@ -96,6 +97,8 @@
       </div>`;
     screens().appendChild(home);
 
+    // animated Matrix-NYC skyline behind everything
+    animateCity($("#cityBg", home));
     // render portrait (animated)
     animatePortrait($("#homePortrait", home), c);
 
@@ -133,6 +136,26 @@
     (function loop(t) {
       if (!alive || !canvas.isConnected) { r.stop(); return; }
       M.sprites.portrait(ctx, w, h, char, (t - t0) / 1000);
+      requestAnimationFrame(loop);
+    })(t0);
+  }
+
+  function animateCity(canvas) {
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    let alive = true; const t0 = performance.now();
+    const r = { stop() { alive = false; } }; activeRain.push(r);
+    function sizeIt() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = canvas.clientWidth || window.innerWidth, h = canvas.clientHeight || window.innerHeight;
+      canvas.width = w * dpr; canvas.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); canvas._w = w; canvas._h = h;
+    }
+    sizeIt();
+    (function loop(t) {
+      if (!alive || !canvas.isConnected) { r.stop(); return; }
+      if (canvas.clientWidth && canvas.clientWidth * (Math.min(window.devicePixelRatio||1,2)) !== canvas.width) sizeIt();
+      M.sprites.cityscape(ctx, canvas._w, canvas._h, (t - t0) / 1000);
       requestAnimationFrame(loop);
     })(t0);
   }
@@ -466,22 +489,38 @@
   }
   function rollChoices(player) {
     const pool = [];
-    // upgrade owned weapons not maxed
+    // EVOLUTIONS available right now (base maxed + required passive maxed)
+    const evos = [];
+    for (const base in D.EVO) {
+      const rec = D.EVO[base];
+      const w = player.weapons[base];
+      const passLv = player.passives[rec.passive] || 0;
+      if (w && w.lvl >= w.def.max && passLv >= D.PASSIVES[rec.passive].max && !player.weapons[rec.into])
+        evos.push({ type: "evolve", base, into: rec.into });
+    }
+    // upgrade owned weapons not maxed (evolved weapons have max 1 so they drop out)
     for (const id in player.weapons) { const w = player.weapons[id]; if (w.lvl < w.def.max) pool.push({ type: "weapon", id, lvlTo: w.lvl + 1, owned: true }); }
-    // new weapons (cap at 6 weapons)
+    // new weapons (cap at 6 weapons; never offer evolved forms directly)
     const wcount = Object.keys(player.weapons).length;
-    if (wcount < 6) for (const id in D.WEAPONS) if (!player.weapons[id]) pool.push({ type: "weapon", id, lvlTo: 1, owned: false });
+    if (wcount < 6) for (const id in D.WEAPONS) if (!player.weapons[id] && !D.WEAPONS[id].evolved) pool.push({ type: "weapon", id, lvlTo: 1, owned: false });
     // passives
     for (const id in D.PASSIVES) { const lv = player.passives[id] || 0; if (lv < D.PASSIVES[id].max) pool.push({ type: "passive", id, lvlTo: lv + 1, owned: lv > 0 }); }
-    // shuffle pick 3
-    const shuffled = pool.sort(() => Math.random() - 0.5).slice(0, 3);
-    // safety filler
-    while (shuffled.length < 3) shuffled.push(U.chance(0.5) ? { type: "heal" } : { type: "bytes" });
-    return shuffled;
+    // shuffle, then guarantee any available evolution is shown first
+    const shuffled = pool.sort(() => Math.random() - 0.5);
+    const out = evos.slice(0, 2);
+    for (const c of shuffled) { if (out.length >= 3) break; out.push(c); }
+    while (out.length < 3) out.push(U.chance(0.5) ? { type: "heal" } : { type: "bytes" });
+    return out.slice(0, 3);
   }
   function luCard(ch, i) {
     if (ch.type === "heal") return `<div class="lu-card"><div class="luico" style="color:#ff6b8a">✚</div><div class="lutxt"><h4>Full Recompile</h4><p>Restore all HP.</p></div></div>`;
     if (ch.type === "bytes") return `<div class="lu-card"><div class="luico" style="color:#ffd24a">¤</div><div class="lutxt"><h4>Data Cache</h4><p>+200 Bytes this run.</p></div></div>`;
+    if (ch.type === "evolve") {
+      const ev = D.WEAPONS[ch.into];
+      return `<div class="lu-card evo"><div class="luico" style="color:${ev.color};font-size:26px">${ev.icon}</div>
+        <div class="lutxt"><h4>${ev.name} <span style="color:#ffd24a">★ EVOLVE</span></h4><p>${ev.desc}</p></div>
+        <div class="lu-lv" style="color:#ffd24a">MAX</div></div>`;
+    }
     const def = ch.type === "weapon" ? D.WEAPONS[ch.id] : D.PASSIVES[ch.id];
     const isNew = !ch.owned;
     return `<div class="lu-card ${ch.lvlTo >= (def.max || 5) ? "evo" : ""}">

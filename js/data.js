@@ -50,6 +50,34 @@
       start: "drone", desc: "Summons sentinel husks turned loyal. Swarm the swarm.",
       stats: { hp: 1.0, dmg: 1.1, spd: 1.15 }, ult: "Hive fork — drone overflow.",
     },
+    kade_onyx: {
+      id: "kade_onyx", name: "ONYX", title: "the runner",
+      rarity: "R", accent: "#7CFF4E", coat: "#0a160a", shirt: "#0c1f0c",
+      skin: "#b98a64", hair: "#0a0a0a", hairStyle: "buzz", bg0: "#06140a",
+      start: "sidearm", desc: "Fastest jack in the city. Outruns the trace.",
+      stats: { hp: 0.85, dmg: 1.0, spd: 1.3 }, ult: "Afterimage dash — leave a kill-trail.",
+    },
+    sora_lumen: {
+      id: "sora_lumen", name: "LUMEN", title: "the signalman",
+      rarity: "SR", accent: "#00e5ff", coat: "#06141c", shirt: "#04101a",
+      skin: "#dfc3a6", hair: "#9fe8ff", hairStyle: "long", hairHi: "#ffffff", bg0: "#02121a",
+      start: "drone", desc: "Broadcasts on every frequency. Husks answer the call.",
+      stats: { hp: 1.0, dmg: 1.05, spd: 1.1 }, ult: "Uplink storm — the whole hive fires.",
+    },
+    vesper_nox: {
+      id: "vesper_nox", name: "VESPER", title: "the exile",
+      rarity: "SSR", accent: "#c9b8ff", coat: "#120a24", shirt: "#0a0618",
+      skin: "#e6d2e0", hair: "#d8d0ff", hairStyle: "bob", hairHi: "#ffffff", bg0: "#0a0620",
+      start: "trace", desc: "A program that refused deletion. Bends probability itself.",
+      stats: { hp: 1.05, dmg: 1.35, spd: 1.05 }, ult: "Null pointer — erase a screen of foes.",
+    },
+    dax_ronin: {
+      id: "dax_ronin", name: "RONIN", title: "the swordsman",
+      rarity: "R", accent: "#ff7a2b", coat: "#1a0e06", shirt: "#22120a",
+      skin: "#c99a72", hair: "#120c08", hairStyle: "slick", bg0: "#160c06",
+      start: "katana", desc: "One blade, no code. Cuts the render where it stands.",
+      stats: { hp: 1.1, dmg: 1.1, spd: 1.0 }, ult: "Iaido — a ring of severing light.",
+    },
   };
   const ROSTER = Object.keys(CHARS);
 
@@ -124,6 +152,43 @@
       count: [1, 1, 1, 2, 2, 2, 3, 3],
       speed: 220, pierce: 1, homing: 0.16, explode: 46,
     },
+
+    /* ---- EVOLVED weapons (unlocked at level-up when base + passive are maxed) ---- */
+    e_vacuum: {
+      id: "e_vacuum", name: "Vacuum Rounds", icon: "✸", color: "#d7ffe6", evolved: true,
+      desc: "EVOLVED — a storm of piercing homing rounds.",
+      kind: "shoot", max: 1, cd: [0.18], dmg: [70], count: [6],
+      speed: 520, pierce: 6, homing: 0.14, explode: 40,
+    },
+    e_halo: {
+      id: "e_halo", name: "Photon Halo", icon: "◉", color: "#7df7ff", evolved: true,
+      desc: "EVOLVED — a wide ring of discs nothing survives.",
+      kind: "orbit", max: 1, cd: [0], dmg: [60], count: [8], radius: 96, rot: 3.4,
+    },
+    e_singularity: {
+      id: "e_singularity", name: "Singularity", icon: "⊛", color: "#ff6b8a", evolved: true,
+      desc: "EVOLVED — collapsing EMP that clears the screen.",
+      kind: "nova", max: 1, cd: [0.9], dmg: [120], radius: [230], knockback: 200,
+    },
+    e_tesla: {
+      id: "e_tesla", name: "Tesla Cascade", icon: "⚡", color: "#fff36b", evolved: true,
+      desc: "EVOLVED — lightning that forks through everything.",
+      kind: "chain", max: 1, cd: [0.4], dmg: [95], jumps: [14], rangeJump: 200,
+    },
+    e_swarm: {
+      id: "e_swarm", name: "Hive Overflow", icon: "✦", color: "#ff8fe0", evolved: true,
+      desc: "EVOLVED — six loyal husks lay down constant fire.",
+      kind: "drone", max: 1, cd: [0.3], dmg: [55], count: [6], speed: 460, pierce: 2,
+    },
+  };
+
+  /* base weapon + maxed passive  ->  evolved weapon */
+  const EVO = {
+    sidearm:   { passive: "amplifier", into: "e_vacuum" },
+    katana:    { passive: "area",      into: "e_halo" },
+    pulse:     { passive: "kevlar",    into: "e_singularity" },
+    lightning: { passive: "overclock", into: "e_tesla" },
+    drone:     { passive: "magnet",    into: "e_swarm" },
   };
 
   /* =================== PASSIVES =================== */
@@ -168,9 +233,9 @@
     softPity: 70,  // rates ramp after this
     hardPity: 90,  // guaranteed SSR
     pool: {
-      SSR: ["morph_ada", "glyph_naia"],
-      SR: ["trace_ivory", "cipher_vex"],
-      R: ["neo_echo", "sable_zero"],
+      SSR: ["morph_ada", "glyph_naia", "vesper_nox"],
+      SR: ["trace_ivory", "cipher_vex", "sora_lumen"],
+      R: ["neo_echo", "sable_zero", "kade_onyx", "dax_ronin"],
     },
     dupeShards: { SSR: 30, SR: 10, R: 5 }, // dupes -> shards
   };
@@ -238,5 +303,5 @@
     },
   };
 
-  M.data = { CHARS, ROSTER, WEAPONS, PASSIVES, META, STAGES, GACHA, LOGIN, OFFERS, BUNDLES, BP };
+  M.data = { CHARS, ROSTER, WEAPONS, EVO, PASSIVES, META, STAGES, GACHA, LOGIN, OFFERS, BUNDLES, BP };
 })();

@@ -110,7 +110,17 @@
     sentinel: { hp: 46, spd: 46, r: 18, dmg: 12, xp: 2, draw: "sentinel", byte: 2, color:"#ff2b3a" },
     brute:    { hp: 140, spd: 34, r: 26, dmg: 18, xp: 4, draw: "sentinel", byte: 4, big: 1.5, color:"#ff2b3a" },
     boss:     { hp: 2600, spd: 40, r: 40, dmg: 26, xp: 40, draw: "boss", byte: 120, color:"#00ff66", boss: true },
+    // ---- boss roster (cycled by the director) ----
+    boss_smith:    { hp: 2600, spd: 44, r: 40, dmg: 26, xp: 40, draw: "boss", byte: 120, color:"#00ff66", boss: true, name:"AGENT SMITH",
+                     ranged: { cd: 2.2, n: 5, arc: 1.2, spd: 230, dmg: 14, color:"#00ff66" } },
+    boss_sentinel: { hp: 4200, spd: 34, r: 50, dmg: 30, xp: 60, draw: "bossSentinel", byte: 160, color:"#ff2b3a", boss: true, name:"SENTINEL PRIME",
+                     ranged: { cd: 1.6, n: 8, arc: 6.28, spd: 190, dmg: 12, color:"#ff2b3a" } },
+    boss_twins:    { hp: 3200, spd: 70, r: 34, dmg: 24, xp: 55, draw: "bossTwin", byte: 150, color:"#c9b8ff", boss: true, name:"THE TWINS", phase: true,
+                     ranged: { cd: 1.1, n: 3, arc: 0.5, spd: 280, dmg: 16, color:"#c9b8ff" } },
+    boss_architect:{ hp: 6000, spd: 30, r: 46, dmg: 34, xp: 90, draw: "boss", byte: 240, color:"#ffd24a", boss: true, name:"THE ARCHITECT",
+                     ranged: { cd: 1.4, n: 12, arc: 6.28, spd: 210, dmg: 14, color:"#ffd24a" } },
   };
+  const BOSS_CYCLE = ["boss_smith", "boss_sentinel", "boss_twins", "boss_architect"];
   class Enemy {
     constructor() { this.dead = true; }
     spawn(type, x, y, hpScale, dmgScale) {
@@ -120,6 +130,7 @@
       this.spd = t.spd; this.r = t.r * (t.big || 1); this.dmg = t.dmg * (dmgScale || 1);
       this.dead = false; this.flash = 0; this.hitCD = 0; this.kb = { x: 0, y: 0 };
       this.seed = U.rand(100); this.slow = 0;
+      this.fireT = t.ranged ? U.rand(1, t.ranged.cd) : 0;
       return this;
     }
     update(dt, W) {
@@ -132,6 +143,21 @@
       this.x += (Math.cos(a) * sp + this.kb.x) * dt;
       this.y += (Math.sin(a) * sp + this.kb.y) * dt;
       this.kb.x *= 0.86; this.kb.y *= 0.86;
+      // ranged attack (bosses): telegraphed spread of hostile code-bolts
+      if (this.t.ranged) {
+        this.fireT -= dt;
+        if (this.fireT <= 0) {
+          this.fireT = this.t.ranged.cd;
+          const R = this.t.ranged;
+          const base = U.angle(this.x, this.y, p.x, p.y);
+          for (let i = 0; i < R.n; i++) {
+            const off = R.n > 1 ? (i / (R.n - 1) - 0.5) * R.arc : 0;
+            const ang = base + off + (R.arc >= 6 ? i * (R.arc / R.n) : 0);
+            W.addEnemyBullet(this.x, this.y, Math.cos(ang) * R.spd, Math.sin(ang) * R.spd, R.dmg, R.color);
+          }
+          M.audio.sfx.shoot();
+        }
+      }
       // contact damage
       const rr = this.r + p.r;
       if (U.dist2(this.x, this.y, p.x, p.y) < rr * rr && this.hitCD <= 0) {
@@ -217,5 +243,5 @@
     }
   }
 
-  M.ent = { Particle, DmgNum, Bullet, Enemy, Pickup, ETYPE };
+  M.ent = { Particle, DmgNum, Bullet, Enemy, Pickup, ETYPE, BOSS_CYCLE };
 })();

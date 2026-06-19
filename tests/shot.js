@@ -62,6 +62,11 @@ const path = require("path");
   await page.evaluate(() => { const lu = document.querySelector("#levelup .lu-card"); if (lu) lu.click(); });
   await page.screenshot({ path: out + "/shot_combat2.png" });
 
+  // force a boss for a visual check
+  await page.evaluate(() => { window.M.game.spawnBoss("boss_sentinel", 1); window.M.game.spawnBoss("boss_twins", 1); });
+  await new Promise((r) => setTimeout(r, 2500));
+  await page.screenshot({ path: out + "/shot_boss.png" });
+
   const stats = await page.evaluate(() => ({
     state: window.M.game.state, time: Math.round(window.M.game.time),
     kills: window.M.game.kills, level: window.M.game.player.level,
