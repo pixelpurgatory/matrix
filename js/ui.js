@@ -53,9 +53,10 @@
         <button class="x-btn" data-close>✕</button>
       </div>
       ${opts.noCur ? "" : curBar()}
-      <div class="scr-body">${bodyHtml}</div>`;
+      <div class="scr-body">${bodyHtml}</div>
+      <div class="scr-foot"><button class="btn close-foot" data-close>✕&nbsp;&nbsp;CLOSE</button></div>`;
     screens().appendChild(scr);
-    scr.querySelector("[data-close]").onclick = () => { M.audio.sfx.ui(); close(scr); opts.onClose && opts.onClose(); };
+    U.$$("[data-close]", scr).forEach((b) => b.onclick = () => { M.audio.sfx.ui(); close(scr); opts.onClose && opts.onClose(); });
     return scr;
   }
   function close(scr) { closeRains(); scr.remove(); }
@@ -221,10 +222,13 @@
           <span class="title-stack"><span class="dayw">DAY</span><span class="lr">Login&nbsp;Rewards</span></span>
         </div>
         ${nodes}
-        <button class="btn primary claim-btn" id="claimLogin" ${d.loginClaimedToday ? "disabled" : ""}>${d.loginClaimedToday ? "CLAIMED" : "Claim"}</button>
+        <div class="login2-foot">
+          <button class="btn primary claim-btn" id="claimLogin" ${d.loginClaimedToday ? "disabled" : ""}>${d.loginClaimedToday ? "CLAIMED" : "Claim"}</button>
+          <button class="btn close-foot" data-close>✕&nbsp;&nbsp;CLOSE</button>
+        </div>
       </div>`;
     screens().appendChild(scr);
-    scr.querySelector("[data-close]").onclick = () => { M.audio.sfx.ui(); scr.remove(); };
+    U.$$("[data-close]", scr).forEach((b) => b.onclick = () => { M.audio.sfx.ui(); scr.remove(); });
     animateHero($("#loginHeroC", scr), hero);
 
     function doClaim() {
@@ -294,8 +298,9 @@
     U.$$("[data-buy]", scr).forEach((b) => b.onclick = () => {
       const id = b.dataset.buy;
       const r = mon.buyOffer(id);
+      if (r.error === "dollars") { toast("NEED " + fmtUsd(r.need) + " MORE $"); shake(scr); return; }
       if (r.ok) {
-        M.audio.sfx.coin(); toast("ACQUIRED"); confettiFlash();
+        M.audio.sfx.coin(); toast("ACQUIRED" + (r.spent ? "  (−" + fmtUsd(r.spent) + ")" : "")); confettiFlash();
         refreshCur(scr); refreshHomeBadges();
         // re-render that card
         const o = D.OFFERS.find((x) => x.id === id);
@@ -438,30 +443,57 @@
   /* ================= ROSTER ================= */
   function showRoster() {
     const d = S.data;
-    const cells = D.ROSTER.map((id) => {
+    const cell = (id) => {
       const c = D.CHARS[id]; const owned = d.rosterOwned[id]; const sel = d.selected === id;
       return `<div class="unit rar r-${c.rarity} ${owned ? "" : "locked"} ${sel ? "sel" : ""}" data-pick="${id}">
         <canvas class="unitc"></canvas>
-        ${owned ? "" : '<div class="lock">🔒</div>'}
+        ${owned ? "" : `<div class="lock">🔒<span class="lockprice">${fmtUsd(mon.operatorPrice(id))}</span></div>`}
         <div class="un"><span class="rarlabel r-${c.rarity}">${c.rarity}</span> ${c.name}</div>
       </div>`;
-    }).join("");
+    };
+    const cells = D.ROSTER.map(cell).join("");
     const scr = openScreen("roster", "OPERATORS", `<div class="roster">${cells}</div>
       <div id="unitInfo" class="card" style="margin-top:14px"><p class="muted center">select an operator</p></div>`);
-    U.$$(".unit", scr).forEach((u) => {
-      const id = u.dataset.pick; const c = D.CHARS[id];
-      const cv = u.querySelector(".unitc"); cv.style.cssText = "width:100%;height:100%;display:block";
-      requestAnimationFrame(() => smallPortrait(cv, c));
-      u.onclick = () => {
-        M.audio.sfx.ui();
-        if (!d.rosterOwned[id]) { toast("LOCKED — pull on Construct"); return; }
-        d.selected = id; S.save();
-        U.$$(".unit", scr).forEach((x) => x.classList.remove("sel")); u.classList.add("sel");
-        $("#unitInfo", scr).innerHTML = `<div class="rarlabel r-${c.rarity}" style="font-size:18px">${c.name} — ${c.title}</div>
-          <p class="muted">${c.desc}</p>
-          <p class="muted">HP ×${c.stats.hp} · DMG ×${c.stats.dmg} · SPD ×${c.stats.spd}</p>
-          <p style="color:#eaffef">START: ${D.WEAPONS[c.start].name} — ULT: ${c.ult}</p>`;
-      };
+
+    function paintCanvases() {
+      U.$$(".unit", scr).forEach((u) => {
+        const c = D.CHARS[u.dataset.pick];
+        const cv = u.querySelector(".unitc"); cv.style.cssText = "width:100%;height:100%;display:block";
+        requestAnimationFrame(() => smallPortrait(cv, c));
+      });
+    }
+    function showInfo(id) {
+      const c = D.CHARS[id]; const owned = S.data.rosterOwned[id];
+      $("#unitInfo", scr).innerHTML = `<div class="rarlabel r-${c.rarity}" style="font-size:19px">${c.name} — ${c.title}</div>
+        <p class="muted">${c.desc}</p>
+        <p class="muted">HP ×${c.stats.hp} · DMG ×${c.stats.dmg} · SPD ×${c.stats.spd}</p>
+        <p style="color:#eaffef">START: ${D.WEAPONS[c.start].name} — ULT: ${c.ult}</p>
+        ${owned ? (S.data.selected === id ? '<p style="color:#39ff9e">✔ SELECTED</p>' : '<button class="btn primary" data-select="' + id + '">SELECT OPERATOR</button>')
+                : `<button class="btn gold" data-unlock="${id}">UNLOCK — ${fmtUsd(mon.operatorPrice(id))}</button>
+                   <span class="muted" style="margin-left:8px">or pull on Construct</span>`}`;
+      const sb = $("[data-select]", $("#unitInfo", scr)); if (sb) sb.onclick = () => selectOp(id);
+      const ub = $("[data-unlock]", $("#unitInfo", scr)); if (ub) ub.onclick = () => unlockOp(id);
+    }
+    function selectOp(id) {
+      M.audio.sfx.ui(); S.data.selected = id; S.save();
+      U.$$(".unit", scr).forEach((x) => x.classList.toggle("sel", x.dataset.pick === id));
+      showInfo(id);
+    }
+    function unlockOp(id) {
+      const r = mon.buyOperator(id);
+      if (r.error === "dollars") { toast("NEED " + fmtUsd(r.need) + " MORE $"); shake(scr); return; }
+      if (r.ok) {
+        M.audio.sfx.coin(); confettiFlash(D.CHARS[id].accent); toast("UNLOCKED " + D.CHARS[id].name + "  (−" + fmtUsd(r.price) + ")");
+        refreshCur(scr);
+        const u = scr.querySelector(`.unit[data-pick="${id}"]`);
+        if (u) { u.classList.remove("locked"); const lk = u.querySelector(".lock"); if (lk) lk.remove(); }
+        selectOp(id);
+      }
+    }
+    paintCanvases();
+    U.$$(".unit", scr).forEach((u) => u.onclick = () => {
+      M.audio.sfx.ui(); const id = u.dataset.pick;
+      if (S.data.rosterOwned[id]) selectOp(id); else showInfo(id);
     });
   }
 
@@ -631,6 +663,11 @@
     const hpt = document.getElementById("hptext"); if (hpt) hpt.textContent = Math.ceil(Math.max(0, p.hp)) + " / " + Math.ceil(p.maxhp);
     const tm = document.getElementById("timer"); if (tm) tm.textContent = U.fmtTime(game.time);
     const kc = document.getElementById("killcount"); if (kc) kc.textContent = "⛧ " + game.kills;
+    const ch = document.getElementById("cashHud");
+    if (ch) {
+      const v = (S.data.dollars || 0).toFixed(2);
+      if (ch.textContent !== "$" + v) { ch.textContent = "$" + v; ch.classList.add("bump"); setTimeout(() => ch.classList.remove("bump"), 140); }
+    }
   }
 
   /* ---------------- helpers ---------------- */
@@ -658,10 +695,16 @@
     requestAnimationFrame(() => { f.style.opacity = "1"; setTimeout(() => { f.style.opacity = "0"; setTimeout(() => f.remove(), 300); }, 120); });
   }
   function shake(node) { node.animate([{ transform: "translateX(0)" }, { transform: "translateX(-8px)" }, { transform: "translateX(8px)" }, { transform: "translateX(0)" }], { duration: 200 }); }
+  function cashFlash() {
+    const f = el("div");
+    f.style.cssText = "position:fixed;inset:0;z-index:65;pointer-events:none;opacity:0;transition:opacity .1s;box-shadow:inset 0 0 120px 30px rgba(57,255,158,.6);";
+    document.body.appendChild(f);
+    requestAnimationFrame(() => { f.style.opacity = "1"; setTimeout(() => { f.style.opacity = "0"; setTimeout(() => f.remove(), 220); }, 90); });
+  }
 
   M.ui = {
     toast, showHome, showLevelUp, showGameOver, updateHud,
     showGacha, showShop, showLogin, showOffers, showBattlePass, showRoster, showMeta, showSettings,
-    nav, closeAll,
+    nav, closeAll, cashFlash,
   };
 })();

@@ -136,22 +136,40 @@
     const tiers = o.tiers ? o.tiers.length : 1;
     return { o, remaining, bought, done: o.once ? bought >= 1 : bought >= tiers, expired: remaining <= 0 && exp > 0 };
   }
-  // "buy" = simulate a purchase, instantly grant rewards (no real money)
+  // "buy" = spend $ credits (if the pack has a $ price), then grant rewards
   function buyOffer(id) {
     const s = S();
     const o = OFFERS.find((x) => x.id === id);
     const st = offerState(id);
     if (st.done) return { error: "done" };
-    if (o.tiers) {
-      const tier = o.tiers[st.bought];
-      grant(tier.give);
-    } else {
-      grant(o.give);
+    // charge the $ price once, when first acquiring this offer (tiers then unlock free)
+    const price = parsePrice(o.price);
+    let spent = 0;
+    if (price != null && price > 0 && (s.boughtOffers[id] || 0) === 0) {
+      if ((s.dollars || 0) + 1e-9 < price) return { error: "dollars", need: +(price - (s.dollars || 0)).toFixed(2), price };
+      s.dollars = +((s.dollars - price).toFixed(2));
+      spent = price;
     }
+    if (o.tiers) grant(o.tiers[st.bought].give);
+    else grant(o.give);
     s.boughtOffers[id] = (s.boughtOffers[id] || 0) + 1;
     if (o.refresh) s.offerExpires[id] = Date.now() + o.durH * 3600e3;
     M.save.save();
-    return { ok: true };
+    return { ok: true, spent };
+  }
+
+  /* ---------------- buy operators with $ ---------------- */
+  const OP_PRICE = { R: 0.99, SR: 2.99, SSR: 4.99 };
+  function operatorPrice(id) { return OP_PRICE[CHARS[id].rarity] || 0.99; }
+  function buyOperator(id) {
+    const s = S();
+    if (s.rosterOwned[id]) return { error: "owned" };
+    const price = operatorPrice(id);
+    if ((s.dollars || 0) + 1e-9 < price) return { error: "dollars", need: +(price - (s.dollars || 0)).toFixed(2), price };
+    s.dollars = +((s.dollars - price).toFixed(2));
+    s.rosterOwned[id] = true;
+    M.save.save();
+    return { ok: true, price };
   }
 
   /* ---------------- BATTLE PASS ---------------- */
@@ -282,6 +300,7 @@
     checkDailies, loginAvailable, claimLogin,
     pull, effectiveRates, unlockChar,
     offerState, buyOffer,
+    operatorPrice, buyOperator,
     bpTier, bpProgress, addBpXp, bpClaim, bpBuyPremium,
     metaLevel, metaBuy, metaBonus,
     buyBundle, parsePrice, addDollars, awardRun, grant, badgeCount,

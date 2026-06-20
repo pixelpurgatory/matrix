@@ -213,7 +213,7 @@
     }
     reset() {
       this.enemies = []; this.bullets = []; this.eBullets = []; this.pickups = []; this.parts = []; this.dmgs = [];
-      this.bossIdx = 0; this.nextBossT = 0;
+      this.bossIdx = 0; this.nextBossT = 0; this._lastWave = 0;
       this.time = 0; this.kills = 0; this.cam = { x: 0, y: 0 }; this.shakeAmt = 0;
       this.spawnT = 0; this.bossSpawned = false; this.bossKilled = false; this.timeScale = 1;
       this.state = "idle"; this.runStats = null; this.rain = null;
@@ -320,7 +320,20 @@
       else if (p.kind === "heart") { this.player.hp = Math.min(this.player.maxhp, this.player.hp + p.val); this.toast("+" + p.val + " HP"); }
       else if (p.kind === "magnet") { this.magnetAll(); }
       else if (p.kind === "bomb") { this.bigBomb(); }
-      else if (p.kind === "cash") { const amt = +(p.val || 0.1).toFixed(2); M.mon.addDollars(amt); this.runDollars = +(((this.runDollars || 0) + amt).toFixed(2)); M.audio.sfx.coin(); this.toast("+ $" + amt.toFixed(2)); }
+      else if (p.kind === "cash") {
+        const amt = +(p.val || 0.1).toFixed(2); M.mon.addDollars(amt);
+        this.runDollars = +(((this.runDollars || 0) + amt).toFixed(2));
+        M.audio.sfx.coin(); M.audio.sfx.levelup();
+        this.toast("💵 + $" + amt.toFixed(2));
+        // flashy burst: rising $ glyphs, sparks, expanding rings, brief slow-mo
+        for (let i = 0; i < 16; i++)
+          this.spawnParticle(p.x, p.y, U.rand(-140, 140), U.rand(-200, -40), U.rand(0.5, 1.0), U.chance(0.5) ? "#39ff9e" : "#eaffff", U.rand(2, 4), U.chance(0.5) ? "glyph" : "rise");
+        this.spawnParticle(p.x, p.y, 0, 0, 0.5, "#39ff9e", 30, "ring");
+        this.spawnParticle(p.x, p.y, 0, 0, 0.35, "#eaffff", 18, "ring");
+        this.shake(7);
+        this.timeScale = 0.35; setTimeout(() => (this.timeScale = 1), 110);
+        M.ui && M.ui.cashFlash && M.ui.cashFlash();
+      }
       this.pickupPool.put(p);
     }
     magnetAll() { for (const p of this.pickups) p.pull = true; this.toast("◈ DATA SWEEP"); }
@@ -334,23 +347,29 @@
     toast(t) { M.ui && M.ui.toast(t); }
     onLevelUp() { M.audio.sfx.levelup(); this._pendingLevels = (this._pendingLevels || 0) + 1; }
 
-    /* ---- spawn director: ramps difficulty over time ---- */
+    /* ---- spawn director: gentle start, escalating waves ---- */
     spawnDirector(dt) {
-      this.spawnT -= dt;
       const min = this.time / 60;
-      const rate = U.clamp(0.45 - min * 0.045, 0.05, 0.45); // faster spawns over time
-      const cap = 320;
+      const cap = 260;
+      // baseline trickle — very light at first, ramps up slowly over minutes
+      this.spawnT -= dt;
+      const rate = U.clamp(1.15 - min * 0.13, 0.16, 1.15); // ~1 enemy/sec at the start
+      const batch = 1 + Math.floor(min * 1.1);             // 1 early, grows over time
       if (this.spawnT <= 0 && this.enemies.length < cap) {
         this.spawnT = rate;
-        const batch = 3 + Math.floor(min * 3);
         for (let i = 0; i < batch && this.enemies.length < cap; i++) this.spawnEnemy(min);
       }
-      // elite waves every 30s
-      if (Math.floor(this.time) > 0 && Math.floor(this.time) % 30 === 0 && !this._waveMark) {
-        this._waveMark = true; this.toast("⚠ TRACE PROGRAM INCOMING");
-        for (let i = 0; i < 8 + min * 3; i++) this.spawnEnemy(min, "sentinel");
+      // discrete escalating WAVES every 22s (first at 0:22), each bigger than the last
+      const interval = 22;
+      const waveNo = Math.floor(this.time / interval);
+      if (waveNo > (this._lastWave || 0)) {
+        this._lastWave = waveNo;
+        const size = Math.min(64, 4 + waveNo * 4);
+        const elite = waveNo >= 3 ? "sentinel" : null;
+        this.toast("⚠ WAVE " + waveNo);
+        M.audio.sfx.boss(); this.shake(6);
+        for (let i = 0; i < size && this.enemies.length < cap; i++) this.spawnEnemy(min, elite && i % 4 === 0 ? elite : null);
       }
-      if (Math.floor(this.time) % 30 !== 0) this._waveMark = false;
       // boss waves: first at stage.boss, then every 75s a new (tougher) archetype
       if (this.time >= (this.nextBossT || this.stage.boss)) {
         const cycle = E.BOSS_CYCLE;

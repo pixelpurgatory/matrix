@@ -240,13 +240,32 @@
         ctx.fillStyle = "#ffb300"; ctx.font = "18px monospace"; ctx.textAlign = "center";
         ctx.fillText("✸", this.x, this.y + 6); ctx.textAlign = "left";
       } else if (this.kind === "cash") {
-        const p = 0.7 + 0.3 * Math.sin(t * 6 + this.x);
-        S.glow(ctx, this.x, this.y, 18, "#39ff9e", 0.7 * p);
-        ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(Math.sin(t * 2 + this.seed) * 0.25);
-        // little green bill
-        ctx.fillStyle = "#0c3a22"; S.rrect(ctx, -10, -6, 20, 12, 2); ctx.fill();
-        ctx.strokeStyle = "#39ff9e"; ctx.lineWidth = 1; ctx.stroke();
-        ctx.fillStyle = "#bfffd8"; ctx.font = "bold 12px monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        const tt = t * 1.4 + this.seed;
+        const p = 0.7 + 0.3 * Math.sin(t * 7 + this.x);
+        const bob = Math.sin(t * 4 + this.seed) * 3;
+        // halo + ground glow
+        S.glow(ctx, this.x, this.y + bob, 26, "#39ff9e", 0.85 * p);
+        S.glow(ctx, this.x, this.y + bob, 13, "#eaffff", 0.5 * p);
+        // orbiting sparkles
+        ctx.fillStyle = "#bfffd8";
+        for (let k = 0; k < 4; k++) {
+          const a = tt * 2 + k * (TAU / 4);
+          const rr = 16 + Math.sin(tt * 3 + k) * 3;
+          const sx = this.x + Math.cos(a) * rr, sy = this.y + bob + Math.sin(a) * rr * 0.7;
+          ctx.globalAlpha = 0.5 + 0.5 * Math.sin(tt * 5 + k);
+          ctx.fillRect(sx - 1, sy - 1, 2, 2);
+        }
+        ctx.globalAlpha = 1;
+        // spinning bill (scaleX = coin flip)
+        ctx.save();
+        ctx.translate(this.x, this.y + bob);
+        const flip = Math.cos(tt * 3);
+        ctx.scale(Math.max(0.18, Math.abs(flip)) * 1.15, 1.15);
+        const grad = ctx.fillStyle = "#0e4a2c";
+        S.rrect(ctx, -11, -7, 22, 14, 3); ctx.fill();
+        ctx.strokeStyle = "#7dffb0"; ctx.lineWidth = 1.4; ctx.shadowColor = "#39ff9e"; ctx.shadowBlur = 8; ctx.stroke(); ctx.shadowBlur = 0;
+        ctx.fillStyle = flip >= 0 ? "#eafff2" : "#9effc0";
+        ctx.font = "bold 14px monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
         ctx.fillText("$", 0, 1); ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
         ctx.restore();
       }

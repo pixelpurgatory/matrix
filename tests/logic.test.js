@@ -171,6 +171,26 @@ M.save.reset();
 M.mon.addDollars(0.5);
 ok("combat $ drop adds + tracks lifetime", M.save.data.dollars === 2.5 && M.save.data.dollarsEarned === 0.5);
 
+console.log("\n== $ UNLOCKS: OFFERS + OPERATORS ==");
+M.save.reset(); M.mon.checkDailies();
+M.save.data.dollars = 10;
+const bo = M.mon.buyOffer("beginner"); // $0.99
+ok("offer charges $ on first acquire", bo.ok && bo.spent === 0.99 && M.save.data.dollars === 9.01, JSON.stringify(bo) + " $" + M.save.data.dollars);
+M.save.reset(); M.mon.checkDailies(); M.save.data.dollars = 0.5;
+const boPoor = M.mon.buyOffer("expert"); // $9.99
+ok("offer blocked when $ short", boPoor.error === "dollars", JSON.stringify(boPoor));
+// operators
+M.save.reset();
+const lockedId = D.ROSTER.find((id) => !M.save.data.rosterOwned[id] && D.CHARS[id].rarity === "R");
+ok("operator price by rarity (R=$0.99)", M.mon.operatorPrice(lockedId) === 0.99);
+M.save.data.dollars = 5;
+const buyOp = M.mon.buyOperator(lockedId);
+ok("buy operator deducts $ + unlocks", buyOp.ok && M.save.data.rosterOwned[lockedId] === true && M.save.data.dollars === +(5 - 0.99).toFixed(2), JSON.stringify(buyOp));
+ok("re-buy owned operator blocked", M.mon.buyOperator(lockedId).error === "owned");
+M.save.reset(); M.save.data.dollars = 0;
+const ssrId = D.ROSTER.find((id) => D.CHARS[id].rarity === "SSR" && !M.save.data.rosterOwned[id]);
+ok("operator blocked when $ short", M.mon.buyOperator(ssrId).error === "dollars");
+
 console.log("\n== OFFLINE PERSISTENCE ==");
 M.save.reset();
 M.mon.addDollars(3.25);
